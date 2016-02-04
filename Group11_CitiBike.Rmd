@@ -1,0 +1,100 @@
+---
+title: "Group11_CitiBike"
+group members:
+output: html_document
+---
+
+Identify patterns in the ride history data. Explain these patterns using appropriate visualization. Two potential patterns are (this is an illustrative list, you should formulate your own patterns as well to be explored here):
+1. Which stations see the most asymmetric traffic (more arrivals than departures and vice versa)?
+2. Which stations originate the longest rides? Does this change as we go through different times of the day?
+
+```{r}
+
+install.packages("gsub")
+
+library(plyr)
+library(dplyr)
+library(ggplot2)
+library(ggmap)
+
+# library(rgdal)
+# library(maptools)
+# if (!require(gpclib)) install.packages("gpclib", type="source")
+
+citiBike <- read.csv("201511-citibike-tripdata.csv")
+
+colnames(citiBike)
+
+# 
+
+stations <- unique(subset(citiBike, select = c(start.station.id, start.station.name, start.station.latitude, start.station.longitude)))
+nrow(unique(stations))
+stations
+
+routes <- unique(subset(citiBike, select = c(start.station.id, end.station.id)))
+nrow(unique(routes))
+routes
+
+#
+
+startStationCount <- citiBike %>%
+  group_by(start.station.id) %>%
+  select(start.station.id) %>%
+  summarise(
+    count = count(citiBike, "start.station.id")
+  )
+
+# http://data.fcc.gov/api/block/2010/find?latitude=40.0&longitude=-85
+
+us <- c(left = -125, bottom = 25.75, right = -67, top = 49)
+map <- get_stamenmap(us, zoom = 5, maptype = "terrain")
+ggmap(map)
+
+qmplot(start.station.longitude, start.station.latitude, data = stations, maptype = "terrain", source='stamen')
+
+qmplot(start.station.longitude, start.station.latitude, data = stations, maptype = "toner-background", darken = 0.7, geom = "blank", source='stamen') +
+  stat_density_2d(aes(fill = ..level..), geom = "polygon", alpha = .3, color = NA) +
+  scale_fill_gradient2("Starting\nPoints", low = "white", mid = "yellow", high = "red", midpoint = 100)
+
+#
+
+startStationCount <- citiBike %>%
+  group_by(start.station.id) %>%
+  select(start.station.id) %>%
+  summarise(
+    count = count(citiBike, "start.station.id")
+  )
+
+
+endStationCount <- citiBike %>%
+  group_by(end.station.id) %>%
+  summarise(
+    count = count(citiBike, "end.station.id")
+  )
+
+
+
+setdiff(startStationCount$count.start.station.id, endStationCount$count.end.station.id)
+
+setdiff(endStationCount$count.end.station.id, startStationCount$count.start.station.id)
+
+head(startStationCount)
+
+startStationCount$coun - endStationCount$count
+
+startStation72 <- subset(citiBike, start.station.id = 3232)
+endStation72 <- subset(citiBike, end.station.id = 3232)
+
+nrow(startStation72)
+nrow(endStation72)
+
+
+```
+
+You can also embed plots, for example:
+
+```{r, echo=FALSE}
+plot(cars)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
