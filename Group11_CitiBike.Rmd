@@ -65,6 +65,14 @@ qmplot(start.station.longitude, start.station.latitude, data = stations, maptype
 #Business Issues
 ####Stations running out of bikes is a big problem. Client would want to know which stations are candidates for improving bike storage capacity.
 
+```{r}
+# The stations that are start stations the most number of times are likely the best candidates for a higher bike storage capacity
+startStationCount <- as.data.frame(table(citiBike$start.station.id))
+startStationCount <- startStationCount[order(startStationCount$Freq, decreasing=TRUE),]
+head(startStationCount)
+```
+
+
 ####Bike maintenance bills are piling up. Client thinks that this is because some bikes are being used a lot more than other bikes. Can you check on this assumption?
 
 ####Client is planning a promotion to increase bike rental by younger folks (age < 25) and tourists (i.e not an annual member). They want to focus on stations that are less used by these target groups. Can you help them identify these stations?
