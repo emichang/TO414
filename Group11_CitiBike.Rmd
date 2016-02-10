@@ -30,26 +30,34 @@ startStation<-as.data.frame(table(citiBike$start.station.id))
 stationData <- merge(startStation, endStation, by="Var1", all=TRUE)
 stationData[is.na(stationData)] <- 0
 names(stationData) <- c("station.id", "start.freq", "end.freq")
-stationData$traffic <- stationData$start.freq - stationData$end.freq
+stationData$inTraffic <- stationData$start.freq - stationData$end.freq
+stationData$outTraffic <- stationData$end.freq - stationData$start.freq
 ```
 
 The stations with the most outgoing traffic are:
 ```{r}
-outTraffic <- stationData[order(stationData$traffic),]
-head(outTraffic)
+outTraffic <- stationData[order(-stationData$outTraffic),]
+barplot(outTraffic$outTraffic[outTraffic$outTraffic > 300], main="Bike Stations with Highest Net Outflow of Bikes", names.arg = outTraffic$station.id[outTraffic$outTraffic > 300], xlab = "Station IDs", ylab = "Net Outflow (Bikes)")
 ```
 
 The stations with the most incoming traffic are:
 ```{r}
-inTraffic <- stationData[order(-stationData$traffic),]
-head(inTraffic)
+inTraffic <- stationData[order(-stationData$inTraffic),]
+barplot(inTraffic$inTraffic[inTraffic$inTraffic > 300], main="Bike Stations with Highest Net Inflow of Bikes", names.arg = inTraffic$station.id[inTraffic$inTraffic > 300], xlab = "Station IDs", ylab = "Net Inflow (Bikes)")
 ```
 
 
 ####2. Which stations originate the longest rides? Does this change as we go through different times of the day?
 ```{r}
-longestRide <- citiBike[order(citiBike$tripduration), ]
-head(longestRide)
+longestRide <- aggregate(citiBike[, 1], list(citiBike$start.station.id), mean)
+names(longestRide) <- c("station.id", "mean.trip.duration")
+stationData <- merge(stationData, longestRide, by="station.id", all=TRUE)
+stationData[is.na(stationData)] <- 0
+
+longestRide <- stationData[order(-stationData$mean.trip.duration),]
+barplot(longestRide$mean.trip.duration[longestRide$mean.trip.duration > 2000], main = "Stations that Originate the Longest Rides", names.arg = longestRide$station.id[longestRide$mean.trip.duration > 2000], xlab = "Station IDs", ylab = "Ride Duration")
+
+
 ```
 
 #Dataset Visualization
