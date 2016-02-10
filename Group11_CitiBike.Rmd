@@ -26,9 +26,7 @@ Identify patterns in the ride history data. Explain these patterns using appropr
 ####1. Which stations see the most asymmetric traffic (more arrivals than departures and vice versa)?
 ```{r}
 endStation<-as.data.frame(table(citiBike$end.station.id))
-
 startStation<-as.data.frame(table(citiBike$start.station.id))
-
 stationData <- merge(startStation, endStation, by="Var1", all=TRUE)
 stationData[is.na(stationData)] <- 0
 names(stationData) <- c("station.id", "start.freq", "end.freq")
@@ -49,7 +47,10 @@ head(inTraffic)
 
 
 ####2. Which stations originate the longest rides? Does this change as we go through different times of the day?
-
+```{r}
+longestRide <- citiBike[order(citiBike$tripduration), ]
+head(longestRide)
+```
 
 #Dataset Visualization
 ```{r}
