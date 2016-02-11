@@ -11,6 +11,12 @@ output: html_document
 
 ```{r}
 
+# install packages
+install.packages("plyr")
+install.packages("dplyr")
+install.packages("ggplot2")
+install.packages("ggmap")
+
 # declare libraries
 library(plyr)
 library(dplyr)
