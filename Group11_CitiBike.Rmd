@@ -16,15 +16,36 @@ install.packages("plyr")
 install.packages("dplyr")
 install.packages("ggplot2")
 install.packages("ggmap")
+install.packages("RColorBrewer")
 
 # declare libraries
 library(plyr)
 library(dplyr)
 library(ggplot2)
 library(ggmap)
+library(RColorBrewer)
 
 # read in citibike data
 citiBike <- read.csv("201511-citibike-tripdata.csv")
+
+# function that creates a vector of gradient colors based on a size input and vector of colors
+gradient <- function(n, colors){
+  colfunc <- colorRampPalette(colors)
+  return(colfunc(n))
+}
+
+# function returns a unique integer from two integer inputs
+cantor_pairing_function <- function(a, b){
+  return(0.5 * (a + b) * (a + b + 1) + b)
+}
+
+min_lat <- min(c(min(citiBike$start.station.latitude), min(citiBike$end.station.latitude))) + 0.025
+max_lat <- max(c(max(citiBike$start.station.latitude), max(citiBike$end.station.latitude))) + 0.0055
+min_lon <- min(c(min(citiBike$start.station.longitude), min(citiBike$end.station.longitude))) + 0.029
+max_lon <- max(c(max(citiBike$start.station.longitude), max(citiBike$end.station.longitude))) + 0.005
+
+nyc <- c(left = min_lon, bottom = min_lat, right = max_lon, top = max_lat)
+basemap <- get_map(nyc, zoom = 13, maptype = "terrain", source = "stamen")
 
 ```
 
@@ -33,30 +54,120 @@ Identify patterns in the ride history data. Explain these patterns using appropr
 
 ####1. Which stations see the most asymmetric traffic (more arrivals than departures and vice versa)?
 ```{r}
-endStation<-as.data.frame(table(citiBike$end.station.id))
-startStation<-as.data.frame(table(citiBike$start.station.id))
-stationData <- merge(startStation, endStation, by="Var1", all=TRUE)
-stationData[is.na(stationData)] <- 0
-names(stationData) <- c("station.id", "start.freq", "end.freq")
-stationData$inTraffic <- stationData$start.freq - stationData$end.freq
-stationData$outTraffic <- stationData$end.freq - stationData$start.freq
-```
 
-The stations with the most outgoing traffic are:
-```{r}
-outTraffic <- stationData[order(-stationData$outTraffic),]
-barplot(outTraffic$outTraffic[outTraffic$outTraffic > 300], main="Bike Stations with Highest Net Outflow of Bikes", names.arg = outTraffic$station.id[outTraffic$outTraffic > 300], xlab = "Station IDs", ylab = "Net Outflow (Bikes)")
-```
+# ===============================================================================
+# ===============================[calculations]==================================
+# ===============================================================================
 
-The stations with the most incoming traffic are:
-```{r}
-inTraffic <- stationData[order(-stationData$inTraffic),]
-barplot(inTraffic$inTraffic[inTraffic$inTraffic > 300], main="Bike Stations with Highest Net Inflow of Bikes", names.arg = inTraffic$station.id[inTraffic$inTraffic > 300], xlab = "Station IDs", ylab = "Net Inflow (Bikes)")
-```
+# get list of stations
+stations <- unique(subset(citiBike, select = c(start.station.id, start.station.latitude, start.station.longitude, starttime)))
+colnames(stations) <- c("id", "lat", "lon", "time")
 
+# get arrivals to station
+arrival_counts <- citiBike %>%
+  count(end.station.id)
+colnames(arrival_counts) <- c("id", "arr")
+
+# get departures from station
+departure_counts <- citiBike %>%
+  count(start.station.id)
+colnames(departure_counts) <- c("id", "dep")
+
+# merge arrivals and departures with list of stations
+stations <- join(stations, arrival_counts, by = "id", type = "full", match = "first")
+stations <- join(stations, departure_counts, by = "id", type = "full", match = "first")
+
+# calculate surplus of station
+stations$surplus = stations$arr - stations$dep
+stations <- stations[with(stations, order(surplus)), ]
+
+# seperate surplus stations
+stations.surplus <- subset(stations, surplus >= 0)
+stations.surplus <- stations.surplus[with(stations.surplus, order(-surplus)), ]
+
+# seperate deficit stations
+stations.deficit <- subset(stations, surplus <= 0)
+stations.deficit <- stations.deficit[with(stations.deficit, order(surplus)), ]
+names(stations.deficit)[names(stations.deficit) == "surplus"] <- "deficit"
+stations.deficit$deficit = stations.deficit$deficit * -1
+
+# ===============================================================================
+# =================================[visualize]===================================
+# ===============================================================================
+
+# declare variables
+elements <- 10
+segments <- ceiling(nrow(stations) / 10)
+
+# initialize geom_point
+surplus <- ggplot(NULL, aes(id, surplus)) +
+  ggtitle("Surplus of Bikes (Arrivals - Departures)") + xlab("Station IDs") + ylab("Surplus of Bikes")
+
+# add segments with different colors, ordered by most to least surplus
+for(i in 1:segments){
+  surplus = surplus + geom_point(data = stations[((i - 1) * 10 + 1) : (i * 10),],
+  color = gradient(segments, c("darkred", "red", "darkorange", "orange", "yellow", "green", "darkgreen"))[i])
+}
+surplus
+
+# top 10 stations with surplus
+barplot(stations.surplus[1:elements,]$surplus, names.arg = stations.surplus$id[1:elements],
+        ylim = c(0, 1000), col = gradient(elements, c("darkgreen", "palegreen3", "palegreen2")), 
+        density = 90, border = TRUE, las = 2, main="Top 10 Stations with Surplus",  
+        xlab = "Station IDs", ylab = "Surplus of Bikes (Arrivals - Departures)",
+        cex.axis = 0.75,  cex.names = 0.75,  cex.lab = 0.9)
+
+# build surplus stations map
+ggmap(basemap, base_layer = ggplot(data = stations.surplus, aes(x = lon, y = lat))) +
+  geom_point(aes(color = surplus, size = surplus), alpha = .8) +
+  scale_color_gradient(low = "palegreen3", high = "darkgreen") +
+  scale_size(range = c(0.1, 10)) + theme_nothing(legend = TRUE)
+
+# top 10 stations with deficit
+barplot(stations.deficit[1:elements,]$deficit, names.arg = stations.deficit$id[1:elements],
+        ylim = c(0, 2500), col = gradient(elements, c("darkred", "red", "darkorange", "orange")), 
+        density = 90, border = TRUE, las = 2, main="Top 10 Stations with Deficit",
+        xlab = "Station IDs", ylab = "Deficit of Bikes (Departures - Arrivals)",
+        cex.axis = 0.75,  cex.names = 0.75,  cex.lab = 0.9)
+
+# build deficit stations map
+ggmap(basemap, base_layer = ggplot(stations.deficit, aes(x = lon, y = lat))) +
+  geom_point(aes(color = deficit, size = deficit), alpha = .8) +
+  scale_color_gradient(low = "darkorange", high = "darkred") +
+  scale_size(range = c(1, 10)) + theme_nothing(legend = TRUE)
+
+```
 
 ####2. Which stations originate the longest rides? Does this change as we go through different times of the day?
 ```{r}
+
+# get avg tripduration from station
+stations.duration <- citiBike %>% 
+  group_by(start.station.id) %>% 
+  select(tripduration) %>% 
+  summarise(duration.avg = mean(tripduration, na.rm = TRUE))
+colnames(stations.duration) <- c("id", "duration.avg")
+stations.duration <- stations.duration[with(stations.duration, order(-duration.avg)), ]
+
+stations <- join(stations, stations.duration, by = "id", type = "full", match = "first")
+head(stations)
+
+stations$counter = 1
+stations$time = as.Date(stations$time, "%m/%d/%Y %H:%M:%S")
+
+dtimes = c("2002-06-09 12:45:40","2003-01-29 09:30:40")
+dtparts = t(as.data.frame(strsplit(dtimes,' ')))
+dtparts
+
+db <- data.frame(time =  Sys.time() + seq(1, 10000, by = 100), counter = 1)
+
+list(format(db$time, "%H"))
+
+res <- aggregate(stations$counter, by = list(format(stations$time, "%Y/%m/%d %H")), sum)
+
+names(res) <- c("date","count")
+res
+
 longestRide <- aggregate(citiBike[, 1], list(citiBike$start.station.id), mean)
 names(longestRide) <- c("station.id", "mean.trip.duration")
 stationData <- merge(stationData, longestRide, by="station.id", all=TRUE)
@@ -106,10 +217,7 @@ barplot(late.evening.ride$mean[late.evening.ride$mean > 2500], names.arg = late.
 
 # =============================[most used routes]================================
 
-# function returns a unique integer from two integer inputs
-cantor_pairing_function <- function(a, b){
-  return(0.5 * (a + b) * (a + b + 1) + b)
-}
+
 
 # get all routes taken
 routes <- subset(citiBike, select = c(start.station.id, end.station.id, start.station.latitude, start.station.longitude, end.station.latitude, end.station.longitude))
@@ -165,36 +273,32 @@ stations.deficit <- subset(stations, surplus <= 0)
 # ==================================[mapping]====================================
 # ===============================================================================
 
-min_lat <- min(c(min(citiBike$start.station.latitude), min(citiBike$end.station.latitude))) + 0.025
-max_lat <- max(c(max(citiBike$start.station.latitude), max(citiBike$end.station.latitude))) + 0.0055
-min_lon <- min(c(min(citiBike$start.station.longitude), min(citiBike$end.station.longitude))) + 0.029
-max_lon <- max(c(max(citiBike$start.station.longitude), max(citiBike$end.station.longitude))) + 0.005
 
-nyc <- c(left = min_lon, bottom = min_lat, right = max_lon, top = max_lat)
-basemap <- get_map(nyc, zoom = 13, maptype = "terrain", source = "stamen")
 
 # =============================[most used routes]================================
 
 # declare variables
-routes_to_show <- 10
+elements <- 10
 origin <- c()
 dest <- c()
 
 # get routes
-for(i in 1:routes_to_show){
-  origin <- append(origin, paste(routes$start.lat[i], routes$start.lon[i], sep=","))
-  dest <- append(dest, paste(routes$end.lat[i], routes$end.lon[i], sep=","))
+for(i in 1:elements){
+  origin <- append(origin, paste(route_counts$start.lat[i], route_counts$start.lon[i], sep=","))
+  dest <- append(dest, paste(route_counts$end.lat[i], route_counts$end.lon[i], sep=","))
 }
 
 # initialize routes map
 map.routes <- ggmap(basemap, base_layer = ggplot(stations, aes(x = lon, y = lat)))
 
 # build routes map
-for(i in 1:(routes_to_show)){
-  k <- (i - 1) / routes_to_show
+for(i in 1:(elements)){
+  k <- (i - 1) / elements
   map.routes <- map.routes +
     geom_path(aes(x = lon, y = lat), data = route(origin[i], dest[i], structure = "route"),
               color = "darkred", size = 2 - (k * (2 - 0.5)), alpha = 1 - (k * (1 - 0.5)))
+  # to deal with Google API request limit
+  Sys.sleep(0.5)
 }
 
 # display route map
@@ -202,21 +306,7 @@ map.routes
 
 # =============================[station surplus]================================
 
-# build surplus stations map
-map.surplus <- ggmap(basemap, base_layer = ggplot(stations.surplus, aes(x = lon, y = lat))) +
-  geom_point(aes(color = surplus, size = surplus), alpha = .8) +
-  scale_color_gradient(low = "green", high = "darkgreen") +
-  scale_size(range = c(0.5, 10))
 
-# build deficit stations map
-map.deficit <- ggmap(basemap, base_layer = ggplot(stations.deficit, aes(x = lon, y = lat))) +
-  geom_point(aes(color = surplus, size = surplus), alpha = .8) +
-  scale_color_gradient(low = "darkred", high = "red") +
-  scale_size(range = c(30, 1))
-
-# display surplus and deficit maps
-map.surplus
-map.deficit
 
 
 ```
@@ -235,22 +325,42 @@ head(startStationCount)
 
 ####Bike maintenance bills are piling up. Client thinks that this is because some bikes are being used a lot more than other bikes. Can you check on this assumption?
 
+## trip duration stuff 
+```{r}
+
+# summing trip durations and grouping by BikeID
+tripSum <- tapply(citiBike$tripduration, citiBike$bikeid, sum)
+head(tripSum)
+tripSum <- as.data.frame(tripSum)
+tripDurations <- as.data.frame(as.table(tripSum))
+names(tripDurations) <- c("bikeID", "minutes")
+
+#sorted by most minutes on bike 
+tripDurations <- tripDurations[order(-tripDurations$minutes),]
+
+barplot(height = tripDurations[1:100,2],xlab = "Bike ID", ylab = "Total Time on Bike by minutes", main = "Top 200 Bike Riding Time Totals")
+
+# Blue Line Indicates Averages 
+abline(h = mean(tripDurations$minutes, na.rm = TRUE), col = "blue")
+
+# Red Line Indicates Median 
+abline(h = median(tripDurations$minutes, na.rm = TRUE), col = "red")
+```
+
 ####Client is planning a promotion to increase bike rental by younger folks (age < 25) and tourists (i.e not an annual member). They want to focus on stations that are less used by these target groups. Can you help them identify these stations?
 
 
 ```{r}
-####Client is planning a promotion to increase bike rental by younger folks (age < 25) and tourists (i.e not an annual member). They want to focus on stations that are less used by these target groups. Can you help them identify these stations?
-#Qu estion for group: should I combine these two groups into one demographic, or leave them separate?
 #Some birth dates are kept empty, can't do anything in those situations. 
 head(citiBike)
-young.customers <- subset(citiBike, citiBike$birth.year > 1991)
+young.customers <- subset(citiBike, citiBike$birth.year > 1991, na.rm = TRUE)
 young.startStation <- as.data.frame(table(young.customers$start.station.id))
 head(young.startStation)
 sorted.young <- young.startStation[order(young.startStation$Freq),]
 head(sorted.young)
 #It may be useful to classify stations "less used" as those with a certain frequency. This would mean taking a subset of sorted.young. 
 #User type is either subscriber or customer, so I'm assuming tourists are customers
-tourist.customers <- subset(citiBike,citiBike$usertype == "Customer")
+tourist.customers <- subset(citiBike,citiBike$usertype == "Customer", na.rm = TRUE)
 tourist.startStation <- as.data.frame(table(tourist.customers$start.station.id))
 head(tourist.startStation)
 sorted.tourist <- tourist.startStation[order(tourist.startStation$Freq),]
