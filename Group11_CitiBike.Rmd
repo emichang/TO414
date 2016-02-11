@@ -88,7 +88,22 @@ head(startStationCount)
 
 
 ```{r}
-# http://data.fcc.gov/api/block/2010/find?latitude=40.0&longitude=-85
+####Client is planning a promotion to increase bike rental by younger folks (age < 25) and tourists (i.e not an annual member). They want to focus on stations that are less used by these target groups. Can you help them identify these stations?
+#Qu estion for group: should I combine these two groups into one demographic, or leave them separate?
+#Some birth dates are kept empty, can't do anything in those situations. 
+head(citiBike)
+young.customers <- subset(citiBike, citiBike$birth.year > 1991)
+young.startStation <- as.data.frame(table(young.customers$start.station.id))
+head(young.startStation)
+sorted.young <- young.startStation[order(young.startStation$Freq),]
+head(sorted.young)
+#It may be useful to classify stations "less used" as those with a certain frequency. This would mean taking a subset of sorted.young. 
+#User type is either subscriber or customer, so I'm assuming tourists are customers
+tourist.customers <- subset(citiBike,citiBike$usertype == "Customer")
+tourist.startStation <- as.data.frame(table(tourist.customers$start.station.id))
+head(tourist.startStation)
+sorted.tourist <- tourist.startStation[order(tourist.startStation$Freq),]
+head(sorted.tourist)
 ```
 
 
