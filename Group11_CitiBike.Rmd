@@ -57,6 +57,33 @@ stationData[is.na(stationData)] <- 0
 longestRide <- stationData[order(-stationData$mean.trip.duration),]
 barplot(longestRide$mean.trip.duration[longestRide$mean.trip.duration > 2000], main = "Stations that Originate the Longest Rides", names.arg = longestRide$station.id[longestRide$mean.trip.duration > 2000], xlab = "Station IDs", ylab = "Ride Duration")
 
+citiBike$time.slot = strtoi(format(as.POSIXct(citiBike$starttime, format = "%m/%d/%Y %H:%M:%S"), format = "%H"), base = 10L)
+citiBike$time.slot.category[citiBike$time.slot < 8] = "earlyMorning"
+citiBike$time.slot.category[citiBike$time.slot < 12 & citiBike$time.slot >= 8] <- "morning"
+citiBike$time.slot.category[citiBike$time.slot < 16 & citiBike$time.slot >= 12] <- "afternoon"
+citiBike$time.slot.category[citiBike$time.slot < 20 & citiBike$time.slot >= 16] <- "evening"
+citiBike$time.slot.category[citiBike$time.slot >= 20] <- "lateEvening"
+
+longest.ride.category <- aggregate(citiBike[, 1], list(citiBike$start.station.id, citiBike$time.slot.category), mean)
+names(longest.ride.category) <- c("station.id", "time.slot", "mean")
+
+
+longest.ride.category <- longest.ride.category[order(-longest.ride.category$mean),]
+
+early.morning.ride = longest.ride.category[longest.ride.category$time.slot == "earlyMorning",]
+barplot(early.morning.ride$mean[early.morning.ride$mean > 2100], names.arg = early.morning.ride$station.id[early.morning.ride$mean > 2100], main="Stations that Originate the Longest Rides in the Early Morning", xlab = "Station IDs", ylab = "Mean Ride Duration")
+
+morning.ride = longest.ride.category[longest.ride.category$time.slot == "morning",]
+barplot(morning.ride$mean[morning.ride$mean > 2100], names.arg = morning.ride$station.id[morning.ride$mean > 2100], main="Stations that Originate the Longest Rides in the Morning", xlab = "Station IDs", ylab = "Mean Ride Duration")
+
+afternoon.ride = longest.ride.category[longest.ride.category$time.slot == "afternoon",]
+barplot(afternoon.ride$mean[afternoon.ride$mean > 2500], names.arg = afternoon.ride$station.id[afternoon.ride$mean > 2500], main="Stations that Originate the Longest Rides in the Afternoon", xlab = "Station IDs", ylab = "Mean Ride Duration")
+
+evening.ride = longest.ride.category[longest.ride.category$time.slot == "evening",]
+barplot(evening.ride$mean[evening.ride$mean > 2100], names.arg = evening.ride$station.id[evening.ride$mean > 2100], main="Stations that Originate the Longest Rides in the Evening", xlab = "Station IDs", ylab = "Mean Ride Duration")
+
+late.evening.ride = longest.ride.category[longest.ride.category$time.slot == "lateEvening",]
+barplot(late.evening.ride$mean[late.evening.ride$mean > 2500], names.arg = late.evening.ride$station.id[late.evening.ride$mean > 2500], main = "Stations that Originate the Longest Rides in the Late Evening", xlab = "Station IDs", ylab = "Mean Ride Duration")
 
 ```
 
