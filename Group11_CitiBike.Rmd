@@ -1,3 +1,7 @@
+
+
+
+
 ---
 title: "Group11_CitiBike"
 group members: Emily Chang, Robert Konigsberg, Mahraan Qadir, Jason Wang, Jiaxin Zheng, Xialin Zou
@@ -6,18 +10,16 @@ output: html_document
 ---
 
 ```{r}
+
+# declare libraries
 library(plyr)
 library(dplyr)
 library(ggplot2)
 library(ggmap)
 
-citiBike <- read.csv("201511-citibike-tripdata.csv")
+# read in citibike data
+citibike <- read.csv("201511-citibike-tripdata.csv")
 
-stations <- unique(subset(citiBike, select = c(start.station.id, start.station.name, start.station.latitude, start.station.longitude)))
-nrow(unique(stations))
-
-routes <- unique(subset(citiBike, select = c(start.station.id, end.station.id)))
-nrow(unique(routes))
 ```
 
 #Patterns in Ride History Data
@@ -62,11 +64,125 @@ barplot(longestRide$mean.trip.duration[longestRide$mean.trip.duration > 2000], m
 
 #Dataset Visualization
 ```{r}
-qmplot(start.station.longitude, start.station.latitude, data = stations, maptype = "terrain", source='stamen')
 
-qmplot(start.station.longitude, start.station.latitude, data = stations, maptype = "toner-background", darken = 0.7, geom = "blank", source='stamen') +
-  stat_density_2d(aes(fill = ..level..), geom = "polygon", alpha = .3, color = NA) +
-  scale_fill_gradient2("Starting\nPoints", low = "white", mid = "yellow", high = "red", midpoint = 100)
+# ===============================================================================
+# ===============================[calculations]==================================
+# ===============================================================================
+
+# =============================[most used routes]================================
+
+# function returns a unique integer from two integer inputs
+cantor_pairing_function <- function(a, b){
+  return(0.5 * (a + b) * (a + b + 1) + b)
+}
+
+# get all routes taken
+routes <- subset(citibike, select = c(start.station.id, end.station.id, start.station.latitude, start.station.longitude, end.station.latitude, end.station.longitude))
+colnames(routes) <- c("start.id", "end.id", "start.lat", "start.lon", "end.lat", "end.lon")
+
+# apply unique route.id based on the cantor pairing function, with start.id and end.id as inputs
+routes$route.id = cantor_pairing_function(routes$start.id, routes$end.id)
+
+# count # of times a route has been used
+route_counts <- routes %>%
+  count(route.id)
+colnames(route_counts) <- c("route.id", "route.count")
+
+# get only unique routes
+unique_routes <- unique(routes)
+
+# merge route count with ids, lats, and longitudes
+route_counts <- join(unique_routes, route_counts, by = "route.id", type = "full", match = "first")
+route_counts <- subset(route_counts, select = -c(route.id) )
+
+# sort by highest count 
+route_counts <- route_counts[with(route_counts, order(-route.count)), ]
+
+# =============================[station surplus]================================
+
+# get arrivals to station
+arrival_counts <- citibike %>%
+  count(end.station.id)
+colnames(arrival_counts) <- c("id", "arr")
+
+# get departures from station
+departure_counts <- citibike %>%
+  count(start.station.id)
+colnames(departure_counts) <- c("id", "dep")
+
+# get unique stations
+stations <- unique(subset(citibike, select = c(start.station.id, start.station.latitude, start.station.longitude)))
+colnames(stations) <- c("id", "lat", "lon")
+
+# merge arrivals and departures with list of stations
+stations <- join(stations, arrival_counts, by = "id", type = "full", match = "first")
+stations <- join(stations, departure_counts, by = "id", type = "full", match = "first")
+
+# calculate surplus of station
+stations$surplus = stations$arr - stations$dep
+
+# seperate surplus and deficit stations
+stations.surplus <- subset(stations, surplus >= 0)
+stations.deficit <- subset(stations, surplus <= 0)
+
+
+# ===============================================================================
+# ==================================[mapping]====================================
+# ===============================================================================
+
+min_lat <- min(c(min(citibike$start.station.latitude), min(citibike$end.station.latitude))) + 0.025
+max_lat <- max(c(max(citibike$start.station.latitude), max(citibike$end.station.latitude))) + 0.0055
+min_lon <- min(c(min(citibike$start.station.longitude), min(citibike$end.station.longitude))) + 0.029
+max_lon <- max(c(max(citibike$start.station.longitude), max(citibike$end.station.longitude))) + 0.005
+
+nyc <- c(left = min_lon, bottom = min_lat, right = max_lon, top = max_lat)
+basemap <- get_map(nyc, zoom = 13, maptype = "terrain", source = "stamen")
+
+# =============================[most used routes]================================
+
+# declare variables
+routes_to_show <- 10
+origin <- c()
+dest <- c()
+
+# get routes
+for(i in 1:routes_to_show){
+  origin <- append(origin, paste(routes$start.lat[i], routes$start.lon[i], sep=","))
+  dest <- append(dest, paste(routes$end.lat[i], routes$end.lon[i], sep=","))
+}
+
+# initialize routes map
+map.routes <- ggmap(basemap, base_layer = ggplot(stations, aes(x = lon, y = lat)))
+
+# build routes map
+for(i in 1:(routes_to_show)){
+  k <- (i - 1) / routes_to_show
+  map.routes <- map.routes +
+    geom_path(aes(x = lon, y = lat), data = route(origin[i], dest[i], structure = "route"),
+              color = "darkred", size = 2 - (k * (2 - 0.5)), alpha = 1 - (k * (1 - 0.5)))
+}
+
+# display route map
+map.routes
+
+# =============================[station surplus]================================
+
+# build surplus stations map
+map.surplus <- ggmap(basemap, base_layer = ggplot(stations.surplus, aes(x = lon, y = lat))) +
+  geom_point(aes(color = surplus, size = surplus), alpha = .8) +
+  scale_color_gradient(low = "green", high = "darkgreen") +
+  scale_size(range = c(0.5, 10))
+
+# build deficit stations map
+map.deficit <- ggmap(basemap, base_layer = ggplot(stations.deficit, aes(x = lon, y = lat))) +
+  geom_point(aes(color = surplus, size = surplus), alpha = .8) +
+  scale_color_gradient(low = "darkred", high = "red") +
+  scale_size(range = c(30, 1))
+
+# display surplus and deficit maps
+map.surplus
+map.deficit
+
 
 ```
 
