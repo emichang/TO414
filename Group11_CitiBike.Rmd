@@ -24,7 +24,7 @@ library(ggplot2)
 library(ggmap)
 
 # read in citibike data
-citibike <- read.csv("201511-citibike-tripdata.csv")
+citiBike <- read.csv("201511-citibike-tripdata.csv")
 
 ```
 
@@ -112,7 +112,7 @@ cantor_pairing_function <- function(a, b){
 }
 
 # get all routes taken
-routes <- subset(citibike, select = c(start.station.id, end.station.id, start.station.latitude, start.station.longitude, end.station.latitude, end.station.longitude))
+routes <- subset(citiBike, select = c(start.station.id, end.station.id, start.station.latitude, start.station.longitude, end.station.latitude, end.station.longitude))
 colnames(routes) <- c("start.id", "end.id", "start.lat", "start.lon", "end.lat", "end.lon")
 
 # apply unique route.id based on the cantor pairing function, with start.id and end.id as inputs
@@ -146,7 +146,7 @@ departure_counts <- citibike %>%
 colnames(departure_counts) <- c("id", "dep")
 
 # get unique stations
-stations <- unique(subset(citibike, select = c(start.station.id, start.station.latitude, start.station.longitude)))
+stations <- unique(subset(citiBike, select = c(start.station.id, start.station.latitude, start.station.longitude)))
 colnames(stations) <- c("id", "lat", "lon")
 
 # merge arrivals and departures with list of stations
@@ -165,10 +165,10 @@ stations.deficit <- subset(stations, surplus <= 0)
 # ==================================[mapping]====================================
 # ===============================================================================
 
-min_lat <- min(c(min(citibike$start.station.latitude), min(citibike$end.station.latitude))) + 0.025
-max_lat <- max(c(max(citibike$start.station.latitude), max(citibike$end.station.latitude))) + 0.0055
-min_lon <- min(c(min(citibike$start.station.longitude), min(citibike$end.station.longitude))) + 0.029
-max_lon <- max(c(max(citibike$start.station.longitude), max(citibike$end.station.longitude))) + 0.005
+min_lat <- min(c(min(citiBike$start.station.latitude), min(citiBike$end.station.latitude))) + 0.025
+max_lat <- max(c(max(citiBike$start.station.latitude), max(citiBike$end.station.latitude))) + 0.0055
+min_lon <- min(c(min(citiBike$start.station.longitude), min(citiBike$end.station.longitude))) + 0.029
+max_lon <- max(c(max(citiBike$start.station.longitude), max(citiBike$end.station.longitude))) + 0.005
 
 nyc <- c(left = min_lon, bottom = min_lat, right = max_lon, top = max_lat)
 basemap <- get_map(nyc, zoom = 13, maptype = "terrain", source = "stamen")
