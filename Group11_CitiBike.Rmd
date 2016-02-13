@@ -1,7 +1,3 @@
-
-
-
-
 ---
 title: "Group11_CitiBike"
 group members: Emily Chang, Robert Konigsberg, Mahraan Qadir, Jason Wang, Jiaxin Zheng, Xialin Zou
@@ -10,12 +6,11 @@ output: html_document
 ---
 
 ```{r}
-
 # install packages
-install.packages("plyr")
-install.packages("dplyr")
-install.packages("ggplot2")
-install.packages("ggmap")
+# install.packages("plyr")
+# install.packages("dplyr")
+# install.packages("ggplot2")
+# install.packages("ggmap")
 
 # declare libraries
 library(plyr)
@@ -136,12 +131,12 @@ route_counts <- route_counts[with(route_counts, order(-route.count)), ]
 # =============================[station surplus]================================
 
 # get arrivals to station
-arrival_counts <- citibike %>%
+arrival_counts <- citiBike %>%
   count(end.station.id)
 colnames(arrival_counts) <- c("id", "arr")
 
 # get departures from station
-departure_counts <- citibike %>%
+departure_counts <- citiBike %>%
   count(start.station.id)
 colnames(departure_counts) <- c("id", "dep")
 
@@ -255,6 +250,23 @@ tourist.startStation <- as.data.frame(table(tourist.customers$start.station.id))
 head(tourist.startStation)
 sorted.tourist <- tourist.startStation[order(tourist.startStation$Freq),]
 head(sorted.tourist)
+```
+
+####Bike Usage by Day of Week 
+```{r}
+citiBike$day = format(as.POSIXct(citiBike$starttime, format = "%m/%d/%Y %H:%M:%S"), format = "%u")
+citiBikeWeekday <- citiBike[citiBike$day < 6,]
+citiBikeWeekend <- citiBike[citiBike$day >= 6,]
+
+citiBikeWeekday$hour = strtoi(format(as.POSIXct(citiBikeWeekday$starttime, format = "%m/%d/%Y %H:%M:%S"), format = "%H"), base = 10L)
+citiBikeWeekend$hour = strtoi(format(as.POSIXct(citiBikeWeekend$starttime, format = "%m/%d/%Y %H:%M:%S"), format = "%H"), base = 10L)
+
+weekdayStart <- as.data.frame(table(citiBikeWeekday$hour))
+weekendStart <- as.data.frame(table(citiBikeWeekend$hour))
+
+barplot(weekdayStart$Freq, names.arg = weekdayStart$Var1, main = "Weekday CitiBike Usage by Time", xlab = "Time (Hour)", ylab = "Number of Users")
+barplot(weekendStart$Freq, names.arg = weekendStart$Var1, main = "Weekend CitiBike Usage by Time", xlab = "Time (Hour)", ylab = "Number of Users")
+
 ```
 
 
