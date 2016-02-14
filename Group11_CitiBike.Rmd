@@ -327,6 +327,29 @@ barplot(weekendStart$Freq, names.arg = weekendStart$Var1, main = "Weekend CitiBi
 
 ```
 
+## additional analysis: Genders within User Types  
+```{r}
+
+genders <- citiBike %>%
+  group_by(usertype) %>%
+  select(gender) 
+
+genderTable <- table(genders)
+
+# 1 is Male
+# 2 is Female
+
+# We see that that there is no gender information for customers, so the barplots will illustrate gender 
+# discrepencies within Subscribers. 
+
+
+labels = c("unidentified", "male", "female")
+barplot(genderTable, main = "Breakdown of Genders within Subscribers", xlab = "Gender", ylab = "Frequency", names.arg = labels)
+
+```
+
+Based on this barplot, we see that within the subscribers there is a much higher number of males than females. This can be very useful for the marketing team as they think about how to segment and target the key demographics. This can also lead to key questions like if there are perhaps lifestyle reasons for why women do not utilize the bike share service as much, for example, having to wear skirts to the office place. Perhaps CitiBike can do more to appeal to female subscribers by also offering additional services like partnerships with local gyms where women can store a change of work clothes. 
+
 
 
 
