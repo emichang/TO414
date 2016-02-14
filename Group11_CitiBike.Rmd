@@ -283,8 +283,7 @@ for(i in 1:2)
 }
 ```
 
-####There are clearly stations that are start stations much more frequently than end stations, and vice versa. By identifying the outlier stations, CitiBike can increase/decrease bike capacity at certain stations to better fit demand.
-
+#####There are clearly stations that are start stations much more frequently than end stations, and vice versa. By identifying these outlier stations, CitiBike can increase/decrease bike capacity at certain stations to better fit demand. In addition, the analysis conducted did not assume CitiBike redistributes bikes at the end of the day. In reality, CitiBike does this, but the analysis can help CitiBike identify which stations to take bikes from and which stations to add bikes to.
 
 ####Bike maintenance bills are piling up. Client thinks that this is because some bikes are being used a lot more than other bikes. Can you check on this assumption?
 
