@@ -227,10 +227,65 @@ map.deficit
 
 ```{r}
 # The stations that are start stations the most number of times are likely the best candidates for a higher bike storage capacity
-startStationCount <- as.data.frame(table(citiBike$start.station.id))
-startStationCount <- startStationCount[order(startStationCount$Freq, decreasing=TRUE),]
-head(startStationCount)
+orderedByMostIncomingTraffic <- stationData[order(stationData$outTraffic),]
+head(orderedByMostIncomingTraffic)
 ```
+
+####A more nuanced approach would be to find the number of total bikes, theoretically split them up equally among all stations, and see which stations need a larger capacity based on each arrival/departure of a bike.
+
+```{r}
+# Find number of unique bike ids
+bikeCapacity <- floor(nrow(as.data.frame(table(citiBike$bikeid))) / nrow(stationData))
+orderedByMostIncomingTraffic <- stationData[order(stationData$outTraffic),]
+
+# Show station that had most bikes leave than arrive; show station that had most bikes arrive than leave. Due to memory restraints, we cannot show all stations. If we could, we would iterate through every station in orderedByMostIncomingTraffic and show the plot for each station.
+stId <- 1
+for(i in 1:2)
+{
+  stationId <- orderedByMostIncomingTraffic[stId,1]
+  stationInvolved <- citiBike[(citiBike$start.station.id == stationId | citiBike$end.station.id == stationId),]
+  numDoubleStations <- nrow(citiBike[(citiBike$start.station.id == stationId & citiBike$end.station.id == stationId),])
+  
+  timeV <- character(nrow(stationInvolved) + numDoubleStations)
+  capacityV <- integer(nrow(stationInvolved) + numDoubleStations)
+  timeV[1] <- "11/1/2015 00:00:00"
+  capacityV[1] <- bikeCapacity
+  timeVIndex <- 2
+  capacityVIndex <- 2
+  currCapacity = bikeCapacity
+  for(j in 1:nrow(stationInvolved))
+  {
+    currRow <- stationInvolved[j,]
+    if(currRow$start.station.id == stationId)
+    {
+      currCapacity <- currCapacity - 1
+      timeV[timeVIndex] <- toString(currRow$starttime)
+      capacityV[capacityVIndex] <- currCapacity
+      timeVIndex <- timeVIndex + 1
+      capacityVIndex <- capacityVIndex + 1
+    }
+    if(currRow$end.station.id == stationId)
+    {
+      currCapacity <- currCapacity + 1
+      timeV[timeVIndex] <- toString(currRow$stoptime)
+      capacityV[capacityVIndex] <- currCapacity
+      timeVIndex <- timeVIndex + 1
+      capacityVIndex <- capacityVIndex + 1
+    }
+  }
+
+  timeVsCapacity <- data.frame(timeV, capacityV)
+  colnames(timeVsCapacity) = c("Time", "Capacity")
+  timeVsCapacity$Time <- factor(timeVsCapacity$Time, levels=unique(as.character(timeVsCapacity$Time)))
+  
+  plot(timeVsCapacity$Time, timeVsCapacity$Capacity, main=stationId, xlab="Time", ylab="Number of bikes at station", type="n")
+  lines(timeVsCapacity$Time, timeVsCapacity$Capacity, type="o")
+  
+  stId <- 475
+}
+```
+
+####There are clearly stations that are start stations much more frequently than end stations, and vice versa. By identifying the outlier stations, CitiBike can increase/decrease bike capacity at certain stations to better fit demand.
 
 
 ####Bike maintenance bills are piling up. Client thinks that this is because some bikes are being used a lot more than other bikes. Can you check on this assumption?
