@@ -28,38 +28,55 @@ Identify patterns in the ride history data. Explain these patterns using appropr
 
 ####1. Which stations see the most asymmetric traffic (more arrivals than departures and vice versa)?
 ```{r}
+# Get counts of number of times each station was used as an end station and start station.
 endStation<-as.data.frame(table(citiBike$end.station.id))
 startStation<-as.data.frame(table(citiBike$start.station.id))
+
+# Merge the two data frames into one
 stationData <- merge(startStation, endStation, by="Var1", all=TRUE)
+
+# Set stations that dont have a count (an NA value) to 0
 stationData[is.na(stationData)] <- 0
+
+# Rename the columns 
 names(stationData) <- c("station.id", "start.freq", "end.freq")
+
+# Calculate incoming and outgoing traffic
 stationData$inTraffic <- stationData$start.freq - stationData$end.freq
 stationData$outTraffic <- stationData$end.freq - stationData$start.freq
 ```
 
-The stations with the most outgoing traffic are:
+####The stations with the most outgoing traffic are:
 ```{r}
+# Order the stations by the most outgoing traffic and graph
 outTraffic <- stationData[order(-stationData$outTraffic),]
 barplot(outTraffic$outTraffic[outTraffic$outTraffic > 300], main="Bike Stations with Highest Net Outflow of Bikes", names.arg = outTraffic$station.id[outTraffic$outTraffic > 300], xlab = "Station IDs", ylab = "Net Outflow (Bikes)")
 ```
 
-The stations with the most incoming traffic are:
+####The stations with the most incoming traffic are:
 ```{r}
+# Order the stations by the most incoming traffic and graph
 inTraffic <- stationData[order(-stationData$inTraffic),]
 barplot(inTraffic$inTraffic[inTraffic$inTraffic > 300], main="Bike Stations with Highest Net Inflow of Bikes", names.arg = inTraffic$station.id[inTraffic$inTraffic > 300], xlab = "Station IDs", ylab = "Net Inflow (Bikes)")
 ```
 
+We used barplots to show which CitiBike stations had the highest net inflow and highest net outflow of bikes over the month of November 2015. We can see that six stations had a net outflow of over 600 bikes and five stations had a net inflow of over 500 bikes over the course of the month. Clearly certain stations are not getting similar numbers of incoming and outgoing bikes, and with this information, CitiBike can track the number of bikes at stations with high numbers of outgoing bikes more closely to ensure that they are always stocked with bikes taken from those left at stations with high numbers of incoming bikes.
 
 ####2. Which stations originate the longest rides? Does this change as we go through different times of the day?
 ```{r}
+# Calculate the mean ride duration for all stations, listed them by start.station.id
 longestRide <- aggregate(citiBike[, 1], list(citiBike$start.station.id), mean)
 names(longestRide) <- c("station.id", "mean.trip.duration")
+
+# Merge into dataframe from part 1
 stationData <- merge(stationData, longestRide, by="station.id", all=TRUE)
 stationData[is.na(stationData)] <- 0
 
+# Order data by trip duration and graph stations with rides of average duration of over 2000
 longestRide <- stationData[order(-stationData$mean.trip.duration),]
 barplot(longestRide$mean.trip.duration[longestRide$mean.trip.duration > 2000], main = "Stations that Originate the Longest Rides", names.arg = longestRide$station.id[longestRide$mean.trip.duration > 2000], xlab = "Station IDs", ylab = "Ride Duration")
 
+# Determine what time of day each ride started in: early morning, morning, afternoon, evening, or late evening
 citiBike$time.slot = strtoi(format(as.POSIXct(citiBike$starttime, format = "%m/%d/%Y %H:%M:%S"), format = "%H"), base = 10L)
 citiBike$time.slot.category[citiBike$time.slot < 8] = "earlyMorning"
 citiBike$time.slot.category[citiBike$time.slot < 12 & citiBike$time.slot >= 8] <- "morning"
@@ -67,28 +84,28 @@ citiBike$time.slot.category[citiBike$time.slot < 16 & citiBike$time.slot >= 12] 
 citiBike$time.slot.category[citiBike$time.slot < 20 & citiBike$time.slot >= 16] <- "evening"
 citiBike$time.slot.category[citiBike$time.slot >= 20] <- "lateEvening"
 
+# Calculate mean duration for each station and time of day combination
 longest.ride.category <- aggregate(citiBike[, 1], list(citiBike$start.station.id, citiBike$time.slot.category), mean)
 names(longest.ride.category) <- c("station.id", "time.slot", "mean")
-
-
 longest.ride.category <- longest.ride.category[order(-longest.ride.category$mean),]
 
+# Create graphs for each of the time of days
 early.morning.ride = longest.ride.category[longest.ride.category$time.slot == "earlyMorning",]
-barplot(early.morning.ride$mean[early.morning.ride$mean > 2100], names.arg = early.morning.ride$station.id[early.morning.ride$mean > 2100], main="Stations that Originate the Longest Rides in the Early Morning", xlab = "Station IDs", ylab = "Mean Ride Duration")
+barplot(early.morning.ride$mean[early.morning.ride$mean > 2500], names.arg = early.morning.ride$station.id[early.morning.ride$mean > 2500], main="Stations that Originate the Longest Rides in the Early Morning", xlab = "Station IDs", ylab = "Mean Ride Duration")
 
 morning.ride = longest.ride.category[longest.ride.category$time.slot == "morning",]
-barplot(morning.ride$mean[morning.ride$mean > 2100], names.arg = morning.ride$station.id[morning.ride$mean > 2100], main="Stations that Originate the Longest Rides in the Morning", xlab = "Station IDs", ylab = "Mean Ride Duration")
+barplot(morning.ride$mean[morning.ride$mean > 2500], names.arg = morning.ride$station.id[morning.ride$mean > 2500], main="Stations that Originate the Longest Rides in the Morning", xlab = "Station IDs", ylab = "Mean Ride Duration")
 
 afternoon.ride = longest.ride.category[longest.ride.category$time.slot == "afternoon",]
-barplot(afternoon.ride$mean[afternoon.ride$mean > 2500], names.arg = afternoon.ride$station.id[afternoon.ride$mean > 2500], main="Stations that Originate the Longest Rides in the Afternoon", xlab = "Station IDs", ylab = "Mean Ride Duration")
+barplot(afternoon.ride$mean[afternoon.ride$mean > 3000], names.arg = afternoon.ride$station.id[afternoon.ride$mean > 3000], main="Stations that Originate the Longest Rides in the Afternoon", xlab = "Station IDs", ylab = "Mean Ride Duration")
 
 evening.ride = longest.ride.category[longest.ride.category$time.slot == "evening",]
-barplot(evening.ride$mean[evening.ride$mean > 2100], names.arg = evening.ride$station.id[evening.ride$mean > 2100], main="Stations that Originate the Longest Rides in the Evening", xlab = "Station IDs", ylab = "Mean Ride Duration")
+barplot(evening.ride$mean[evening.ride$mean > 2500], names.arg = evening.ride$station.id[evening.ride$mean > 2500], main="Stations that Originate the Longest Rides in the Evening", xlab = "Station IDs", ylab = "Mean Ride Duration")
 
 late.evening.ride = longest.ride.category[longest.ride.category$time.slot == "lateEvening",]
-barplot(late.evening.ride$mean[late.evening.ride$mean > 2500], names.arg = late.evening.ride$station.id[late.evening.ride$mean > 2500], main = "Stations that Originate the Longest Rides in the Late Evening", xlab = "Station IDs", ylab = "Mean Ride Duration")
-
+barplot(late.evening.ride$mean[late.evening.ride$mean > 3000], names.arg = late.evening.ride$station.id[late.evening.ride$mean > 3000], main = "Stations that Originate the Longest Rides in the Late Evening", xlab = "Station IDs", ylab = "Mean Ride Duration")
 ```
+
 
 #Dataset Visualization
 ```{r}
