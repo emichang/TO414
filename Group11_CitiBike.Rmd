@@ -241,13 +241,16 @@ for(i in 1:2)
   stationInvolved <- citiBike[(citiBike$start.station.id == stationId | citiBike$end.station.id == stationId),]
   numDoubleStations <- nrow(citiBike[(citiBike$start.station.id == stationId & citiBike$end.station.id == stationId),])
   
+  # vectors to hold capacity at a certain time
   timeV <- character(nrow(stationInvolved) + numDoubleStations)
   capacityV <- integer(nrow(stationInvolved) + numDoubleStations)
+  # initial values
   timeV[1] <- "11/1/2015 00:00:00"
   capacityV[1] <- bikeCapacity
   timeVIndex <- 2
   capacityVIndex <- 2
   currCapacity = bikeCapacity
+  # iterate through everytime the station is either a start or end station
   for(j in 1:nrow(stationInvolved))
   {
     currRow <- stationInvolved[j,]
